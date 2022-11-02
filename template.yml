@@ -1,0 +1,34 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  #this section is for the keypairs for the ec2 instances
+  EC2key:
+
+  #This section is for the name of the Database that we will use
+  DBName:
+
+  #This section is to create a user for the DB
+  DBUser:
+
+  #This section is to create a password for the User above
+  DBPass:
+
+  #This section is to create a Root password for the Database
+  DBRootPass:
+
+  #This section is to spesify what instances we will be using
+  InstanceType:
+
+  #This section is to spesify where ssh requests can come from to access the ec2 instance
+  SSHLocation:
+
+Resources:
+  #This is the webserver of the mom and pop store, it will handle online purchasing
+  WebServerInstance:
+
+  #This is the webserver of the mom and pop store, it will handle interactions betwwen the store
+  LocalServerInstance:
+
+  #This is the Management Server of the mom and pop store, it will handle anything to do with the manitence of the business
+  ManagementServerInstance:
+
+Output:
