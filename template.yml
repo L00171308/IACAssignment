@@ -105,12 +105,27 @@ Parameters:
 Resources:
   #This is the webserver of the mom and pop store, it will handle online purchasing
   WebServerInstance:
+    Type: 'AWS::EC2::Instance'
+    MetaData:
+      configSets:
+        InstallAndRun:
+          - Install
+          - Configure
+      Install:
+
+      Configure:
+
+
+    Properties:
+
 
   #This is the webserver of the mom and pop store, it will handle interactions betwwen the store
   LocalServerInstance:
+    Type: 'AWS::EC2::Instance'
 
   #This is the Management Server of the mom and pop store, it will handle anything to do with the manitence of the business
   ManagementServerInstance:
+    Type: 'AWS::EC2::Instance'
 
   #This is the security group that pertains to the web server that will lik to the outside world
   WSSGroup:
