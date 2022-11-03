@@ -1,4 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
+
+#this contains all the parameters to be used later in the template
 Parameters:
   #this section is for the keypairs for the ec2 instances to allow for
   EC2key:
@@ -19,7 +21,7 @@ Parameters:
 
   #This section is to create a user for the DB
   DBUser:
-    Default: MyDatabase
+    Default: admin
     Description: MySQL database name
     Type: String
     MinLength: '1'
@@ -29,7 +31,7 @@ Parameters:
 
   #This section is to create a password for the User above
   DBPass:
-    Default: MyDatabase
+    Default: admin
     Description: MySQL database name
     Type: String
     MinLength: '1'
@@ -39,7 +41,7 @@ Parameters:
 
   #This section is to create a Root password for the Database
   DBRootPass:
-    Default: MyDatabase
+    Default: P13as3H31p
     Description: MySQL database name
     Type: String
     MinLength: '1'
@@ -47,7 +49,7 @@ Parameters:
     AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
     ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
 
-  #This section is to spesify what instances we will be using
+  #This section is to specify what instances we will be using for the Web Server
   WSInstanceType:
     Description: Web Server EC2 instance type
     Type: String
@@ -58,6 +60,7 @@ Parameters:
       - t2.micro
     ConstraintDescription: must be a valid EC2 instance type.
 
+  #This section is to specify what instances we will be using for the Web Server
   LSInstanceType:
     Description: Local Server EC2 instance type
     Type: String
@@ -68,6 +71,7 @@ Parameters:
       - t2.micro
     ConstraintDescription: must be a valid EC2 instance type.
 
+  #This section is to specify what instances we will be using for the Web Server
   MSInstanceType:
     Description: Management Server EC2 instance type
     Type: String
@@ -78,8 +82,25 @@ Parameters:
       - t2.micro
     ConstraintDescription: must be a valid EC2 instance type.
 
-  #This section is to spesify where ssh requests can come from to access the ec2 instance
+  #This section is to specify where ssh requests can come from to access the ec2 instance
   SSHLocation:
+    Description: 'The IP address range to be used to SSH to the EC2 instances'
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: 0.0.0.0/0
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+
+  #This section is to spesify where TCP requests can come from to access the ec2 instance
+  TCPLocation:
+    Description: 'The IP address range that can be used to TCP to the EC2 instances'
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: 0.0.0.0/0
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
 
 Resources:
   #This is the webserver of the mom and pop store, it will handle online purchasing
@@ -91,4 +112,42 @@ Resources:
   #This is the Management Server of the mom and pop store, it will handle anything to do with the manitence of the business
   ManagementServerInstance:
 
+  #This is the security group that pertains to the web server that will lik to the outside world
+  WSSGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: external port and IP rules
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: !Ref TCPLocation
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: !Ref SSHLocation
+
+  #This is the security group that pertains to the two or more internal servers that will be not exposed to the general public
+  ISSGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Internal port and IP rules
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: !Ref TCPLocation
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: !Ref SSHLocation
+
 Output:
+  WebsiteURL:
+    Description: URL for the webserver
+    Value: !Join
+      - ''
+      - - 'http://'
+        - !GetAtt
+          - WebServerInstance
+          - PublicDnsName
