@@ -1,22 +1,82 @@
 AWSTemplateFormatVersion: 2010-09-09
 Parameters:
-  #this section is for the keypairs for the ec2 instances
+  #this section is for the keypairs for the ec2 instances to allow for
   EC2key:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
 
   #This section is for the name of the Database that we will use
   DBName:
+    Default: MyDatabase
+    Description: MySQL database name
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+
 
   #This section is to create a user for the DB
   DBUser:
+    Default: MyDatabase
+    Description: MySQL database name
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
 
   #This section is to create a password for the User above
   DBPass:
+    Default: MyDatabase
+    Description: MySQL database name
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
 
   #This section is to create a Root password for the Database
   DBRootPass:
+    Default: MyDatabase
+    Description: MySQL database name
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
 
   #This section is to spesify what instances we will be using
-  InstanceType:
+  WSInstanceType:
+    Description: Web Server EC2 instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t1.micro
+      - t2.nano
+      - t2.micro
+    ConstraintDescription: must be a valid EC2 instance type.
+
+  LSInstanceType:
+    Description: Local Server EC2 instance type
+    Type: String
+    Default: t2.nano
+    AllowedValues:
+      - t1.micro
+      - t2.nano
+      - t2.micro
+    ConstraintDescription: must be a valid EC2 instance type.
+
+  MSInstanceType:
+    Description: Management Server EC2 instance type
+    Type: String
+    Default: t2.nano
+    AllowedValues:
+      - t1.micro
+      - t2.nano
+      - t2.micro
+    ConstraintDescription: must be a valid EC2 instance type.
 
   #This section is to spesify where ssh requests can come from to access the ec2 instance
   SSHLocation:
