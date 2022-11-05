@@ -7,8 +7,23 @@ Parameters:
     Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
     Type: 'AWS::EC2::KeyPair::KeyName'
     ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  # This sets the ip range of the virtual private cloud
+  VpcRange:
+    Description: Please enter the IP range for this VPC
+    Type: String
+    Default: 10.7.0.0/16
 
-  #This section is for the name of the Database that we will use
+  PubSubnet:
+    Description: Please enter the IP range for the public subnet
+    Type: String
+    Default: 10.7.1.0/24
+
+  PriSubnet:
+    Description: Please enter the IP range for the private subnet
+    Type: String
+    Default: 10.7.2.0/24
+
+  #This section is for the name of the Database for the webserver that we will use
   DBName:
     Default: MyDatabase
     Description: MySQL database name
@@ -19,8 +34,8 @@ Parameters:
     ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
 
 
-  #This section is to create a user for the DB
-  DBUser:
+  #This section is to create a user for the DB of the webserver
+  WSDBUser:
     Default: admin
     Description: MySQL database name
     Type: String
@@ -29,8 +44,8 @@ Parameters:
     AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
     ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
 
-  #This section is to create a password for the User above
-  DBPass:
+  #This section is to create a password for the User of the webserver above
+  WSDBPass:
     Default: admin
     Description: MySQL database name
     Type: String
@@ -39,8 +54,38 @@ Parameters:
     AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
     ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
 
-  #This section is to create a Root password for the Database
-  DBRootPass:
+  #This section is to create a Root password for the Database of the webserver
+  WSDBRootPass:
+    Default: P13as3H31p
+    Description: MySQL database name
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+
+  #This section is to create a user for the DB of the webserver
+  MSDBUser:
+    Default: admin
+    Description: MySQL database name
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+
+  #This section is to create a password for the User of the webserver above
+  MSDBPass:
+    Default: admin
+    Description: MySQL database name
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+
+  #This section is to create a Root password for the Database of the webserver
+  MSDBRootPass:
     Default: P13as3H31p
     Description: MySQL database name
     Type: String
@@ -58,9 +103,16 @@ Parameters:
       - t1.micro
       - t2.nano
       - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+      - m1.small
+      - m1.medium
+      - m1.large
+      - m1.xlarge
     ConstraintDescription: must be a valid EC2 instance type.
 
-  #This section is to specify what instances we will be using for the Web Server
+  #This section is to specify what instances we will be using for the local Server
   LSInstanceType:
     Description: Local Server EC2 instance type
     Type: String
@@ -71,7 +123,7 @@ Parameters:
       - t2.micro
     ConstraintDescription: must be a valid EC2 instance type.
 
-  #This section is to specify what instances we will be using for the Web Server
+  #This section is to specify what instances we will be using for the Management server
   MSInstanceType:
     Description: Management Server EC2 instance type
     Type: String
@@ -103,29 +155,195 @@ Parameters:
     ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
 
 Resources:
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: 10.0.0.0/16
+
+  Subnet:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.0.0/24
+
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+
+  AttachGateway:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  RouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+
+  Route:
+    Type: 'AWS::EC2::Route'
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+
+  SubnetRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref Subnet
+      RouteTableId: !Ref RouteTable
+
+  IPAddress:
+    Type: 'AWS::EC2::EIP'
+    DependsOn: AttachGateway
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref WebServerInstance
+
   #This is the webserver of the mom and pop store, it will handle online purchasing
   WebServerInstance:
     Type: 'AWS::EC2::Instance'
+    DependsOn: AttachGateway
     MetaData:
       configSets:
         InstallAndRun:
           - Install
           - Configure
       Install:
+        packages:
+            yum:
+              mysql: []
+              mysql-server: []
+              mysql-libs: []
+              httpd: []
+              php: []
+              php-mysql: []
+          files:
+            /var/www/html/index.php:
+            /tmp/setup.mysql:
+              content: !Join
+                - ''
+                - - 'CREATE DATABASE '
+                  - !Ref DBName
+                  - |
+                    ;
+                  - 'GRANT ALL ON '
+                  - !Ref DBName
+                  - .* TO '
+                  - !Ref DBUser
+                  - '''@localhost IDENTIFIED BY '''
+                  - !Ref DBPassword
+                  - |
+                    ';
+              mode: '000400'
+              owner: root
+              group: root
+          services:
+            sysvinit:
+              mysqld:
+                enabled: 'true'
+                ensureRunning: 'true'
+              httpd:
+                enabled: 'true'
+                ensureRunning: 'true'
+
 
       Configure:
-
+        commands:
+            01_set_mysql_root_password:
+              command: !Join
+                - ''
+                - - mysqladmin -u root password '
+                  - !Ref DBRootPassword
+                  - ''''
+            02_create_database:
+              command: !Join
+                - ''
+                - - mysql -u root --password='
+                  - !Ref DBRootPassword
+                  - ''' < /tmp/setup.mysql'
 
     Properties:
+      ImageId:
+      InstanceType: !Ref InstanceType
+      SecurityGroups:
+        - !Ref WebServerSecurityGroup
+
 
 
   #This is the webserver of the mom and pop store, it will handle interactions betwwen the store
   LocalServerInstance:
     Type: 'AWS::EC2::Instance'
+    Properties:
 
   #This is the Management Server of the mom and pop store, it will handle anything to do with the manitence of the business
   ManagementServerInstance:
     Type: 'AWS::EC2::Instance'
+    DependsOn: AttachGateway
+    MetaData:
+      configSets:
+        InstallAndRun:
+          - Install
+          - Configure
+      Install:
+        packages:
+            yum:
+              mysql: []
+              mysql-server: []
+              mysql-libs: []
+          files:
+            /var/www/html/index.php:
+            /tmp/setup.mysql:
+              content: !Join
+                - ''
+                - - 'CREATE DATABASE '
+                  - !Ref DBName
+                  - |
+                    ;
+                  - 'GRANT ALL ON '
+                  - !Ref DBName
+                  - .* TO '
+                  - !Ref DBUser
+                  - '''@localhost IDENTIFIED BY '''
+                  - !Ref DBPassword
+                  - |
+                    ';
+              mode: '000400'
+              owner: root
+              group: root
+          services:
+            sysvinit:
+              mysqld:
+                enabled: 'true'
+                ensureRunning: 'true'
+              httpd:
+                enabled: 'true'
+                ensureRunning: 'true'
+
+
+      Configure:
+        commands:
+            01_set_mysql_root_password:
+              command: !Join
+                - ''
+                - - mysqladmin -u root password '
+                  - !Ref DBRootPassword
+                  - ''''
+            02_create_database:
+              command: !Join
+                - ''
+                - - mysql -u root --password='
+                  - !Ref DBRootPassword
+                  - ''' < /tmp/setup.mysql'
+
+    Properties:
+      ImageId:
+      InstanceType: !Ref InstanceType
+      SecurityGroups:
+        - !Ref WebServerSecurityGroup
+
+
 
   #This is the security group that pertains to the web server that will lik to the outside world
   WSSGroup:
