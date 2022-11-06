@@ -23,9 +23,19 @@ Parameters:
     Type: String
     Default: 10.7.2.0/24
 
-  #This section is for the name of the Database for the webserver that we will use
-  DBName:
-    Default: MyDatabase
+  #This section is for the name of the Database for the web server that we will use
+  WSDBName:
+    Default: CustomerDB
+    Description: MySQL database name
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+
+  #This section is for the name of the Database for the Management Server that we will use
+  MSDBName:
+    Default: employeeDB
     Description: MySQL database name
     Type: String
     MinLength: '1'
@@ -221,17 +231,36 @@ Resources:
               php-mysql: []
           files:
             /var/www/html/index.php:
+              content: !Join
+                - ''
+                - - |
+                    <html>
+                  - |2
+                    <title>Mom and Pop INC.</title>
+                  - |2
+                    </head>
+                  - |2
+                    <body>
+                  - |2
+                    <h1>Mom and Pop INC. home page</h1>
+                  - |2
+                    <p>Cras vulputate, nibh quis auctor semper, tellus quam porttitor nunc, nec congue nisl libero ac erat. Proin placerat tortor eu tincidunt sollicitudin. Vestibulum nibh ex, feugiat sit amet ullamcorper nec, volutpat non mauris. Sed sit amet massa et dolor gravida placerat faucibus a neque. Vivamus ac urna at massa scelerisque consectetur quis eu diam. Curabitur vulputate leo blandit, pharetra ipsum sed, molestie felis. In cursus finibus ante, eu dapibus nibh tempor et. Mauris iaculis mi at mauris fringilla, at ullamcorper ipsum faucibus. Curabitur eu eleifend eros. Curabitur aliquet aliquet lacinia.</p>
+                  - |2
+                    </body>
+                  - |2
+                    </html>
+                  - |2
             /tmp/setup.mysql:
               content: !Join
                 - ''
                 - - 'CREATE DATABASE '
-                  - !Ref DBName
+                  - !Ref WSDBName
                   - |
                     ;
                   - 'GRANT ALL ON '
-                  - !Ref DBName
+                  - !Ref WSDBName
                   - .* TO '
-                  - !Ref DBUser
+                  - !Ref WSDBUser
                   - '''@localhost IDENTIFIED BY '''
                   - !Ref DBPassword
                   - |
@@ -255,13 +284,13 @@ Resources:
               command: !Join
                 - ''
                 - - mysqladmin -u root password '
-                  - !Ref DBRootPassword
+                  - !Ref WSDBRootPass
                   - ''''
             02_create_database:
               command: !Join
                 - ''
                 - - mysql -u root --password='
-                  - !Ref DBRootPassword
+                  - !Ref WSDBRootPass
                   - ''' < /tmp/setup.mysql'
 
     Properties:
@@ -293,20 +322,19 @@ Resources:
               mysql-server: []
               mysql-libs: []
           files:
-            /var/www/html/index.php:
             /tmp/setup.mysql:
               content: !Join
                 - ''
                 - - 'CREATE DATABASE '
-                  - !Ref DBName
+                  - !Ref MSDBName
                   - |
                     ;
                   - 'GRANT ALL ON '
-                  - !Ref DBName
+                  - !Ref MSDBName
                   - .* TO '
-                  - !Ref DBUser
+                  - !Ref MSDBUser
                   - '''@localhost IDENTIFIED BY '''
-                  - !Ref DBPassword
+                  - !Ref MSDBPass
                   - |
                     ';
               mode: '000400'
@@ -317,9 +345,6 @@ Resources:
               mysqld:
                 enabled: 'true'
                 ensureRunning: 'true'
-              httpd:
-                enabled: 'true'
-                ensureRunning: 'true'
 
 
       Configure:
@@ -328,13 +353,13 @@ Resources:
               command: !Join
                 - ''
                 - - mysqladmin -u root password '
-                  - !Ref DBRootPassword
+                  - !Ref MSDBRootPass
                   - ''''
             02_create_database:
               command: !Join
                 - ''
                 - - mysql -u root --password='
-                  - !Ref DBRootPassword
+                  - !Ref MSDBRootPass
                   - ''' < /tmp/setup.mysql'
 
     Properties:
