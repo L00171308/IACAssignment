@@ -2,26 +2,23 @@ AWSTemplateFormatVersion: 2010-09-09
 
 #this contains all the parameters to be used later in the template
 Parameters:
-  #this section is for the keypairs for the ec2 instances to allow for
-  EC2key:
-    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
-    Type: 'AWS::EC2::KeyPair::KeyName'
-    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+
+  #This sets the image of the instances
+  AMI:
+    Description: Please enter your image string
+    Type: String
+    Default: ami-015232c01a82b847b
+
   # This sets the ip range of the virtual private cloud
   VpcRange:
     Description: Please enter the IP range for this VPC
     Type: String
-    Default: 10.7.0.0/16
+    Default: 10.7.1.0/28
 
   PubSubnet:
     Description: Please enter the IP range for the public subnet
     Type: String
-    Default: 10.7.1.0/24
-
-  PriSubnet:
-    Description: Please enter the IP range for the private subnet
-    Type: String
-    Default: 10.7.2.0/24
+    Default: 10.7.1.0/30
 
   #This section is for the name of the Database for the web server that we will use
   WSDBName:
@@ -150,9 +147,8 @@ Parameters:
     Type: String
     MinLength: '9'
     MaxLength: '18'
-    Default: 0.0.0.0/0
     AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
-    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    ConstraintDescription: please enter a valid IP CIDR.
 
   #This section is to spesify where TCP requests can come from to access the ec2 instance
   TCPLocation:
@@ -162,30 +158,34 @@ Parameters:
     MaxLength: '18'
     Default: 0.0.0.0/0
     AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
-    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    ConstraintDescription: please enter a valid IP CIDR.
 
 Resources:
+  #This is the virtual private cloud (VPC) instance
   VPC:
     Type: 'AWS::EC2::VPC'
     Properties:
-      CidrBlock: 10.0.0.0/16
+      CidrBlock: VpcRange
 
+  #This is the subnet for the VPC instance
   Subnet:
     Type: 'AWS::EC2::Subnet'
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: 10.0.0.0/24
+      CidrBlock: PubSubnet
 
+  #This is the gateway to allow access on the internet
   InternetGateway:
     Type: 'AWS::EC2::InternetGateway'
     Properties:
 
+  #This section is ued to link the Gateway to the VPC instance
   AttachGateway:
     Type: 'AWS::EC2::VPCGatewayAttachment'
     Properties:
       VpcId: !Ref VPC
       InternetGatewayId: !Ref InternetGateway
-
+  #This is the RouteTable to control where
   RouteTable:
     Type: 'AWS::EC2::RouteTable'
     Properties:
@@ -196,14 +196,15 @@ Resources:
     DependsOn: AttachGateway
     Properties:
       RouteTableId: !Ref RouteTable
-      DestinationCidrBlock: 0.0.0.0/0
 
+  #This section is ued to link the route table to the subnet
   SubnetRouteTableAssociation:
     Type: 'AWS::EC2::SubnetRouteTableAssociation'
     Properties:
       SubnetId: !Ref Subnet
       RouteTableId: !Ref RouteTable
 
+  #The elastic ip address that will be used with the web server
   IPAddress:
     Type: 'AWS::EC2::EIP'
     DependsOn: AttachGateway
@@ -294,7 +295,7 @@ Resources:
                   - ''' < /tmp/setup.mysql'
 
     Properties:
-      ImageId:
+      ImageId: !Ref AMI
       InstanceType: !Ref InstanceType
       SecurityGroups:
         - !Ref WebServerSecurityGroup
@@ -305,6 +306,10 @@ Resources:
   LocalServerInstance:
     Type: 'AWS::EC2::Instance'
     Properties:
+      ImageId: !Ref AMI
+      InstanceType: !Ref InstanceType
+      SecurityGroups:
+        - !Ref ISSGroup
 
   #This is the Management Server of the mom and pop store, it will handle anything to do with the manitence of the business
   ManagementServerInstance:
@@ -363,10 +368,10 @@ Resources:
                   - ''' < /tmp/setup.mysql'
 
     Properties:
-      ImageId:
+      ImageId: !Ref AMI
       InstanceType: !Ref InstanceType
       SecurityGroups:
-        - !Ref WebServerSecurityGroup
+        - !Ref ISSGroup
 
 
 
@@ -380,10 +385,6 @@ Resources:
           FromPort: '80'
           ToPort: '80'
           CidrIp: !Ref TCPLocation
-        - IpProtocol: tcp
-          FromPort: '22'
-          ToPort: '22'
-          CidrIp: !Ref SSHLocation
 
   #This is the security group that pertains to the two or more internal servers that will be not exposed to the general public
   ISSGroup:
@@ -391,11 +392,7 @@ Resources:
     Properties:
       GroupDescription: Internal port and IP rules
       SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: '80'
-          ToPort: '80'
-          CidrIp: !Ref TCPLocation
-        - IpProtocol: tcp
+        - IpProtocol: ssh
           FromPort: '22'
           ToPort: '22'
           CidrIp: !Ref SSHLocation
