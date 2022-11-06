@@ -171,7 +171,7 @@ Resources:
     Properties:
       CidrBlock: VpcRange
 
-  #This is the subnet for the VPC instance
+  #This is the subnets for the VPC instance
   WSSubnet:
     Type: 'AWS::EC2::Subnet'
     Properties:
@@ -390,6 +390,7 @@ Resources:
   WSSGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
+      SubnetId: !Ref WSSubnet
       GroupDescription: external port and IP rules
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -401,6 +402,7 @@ Resources:
   ISSGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
+      SubnetId: !Ref LSSubnet
       GroupDescription: Internal port and IP rules
       SecurityGroupIngress:
         - IpProtocol: ssh
