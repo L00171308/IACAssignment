@@ -19,7 +19,7 @@ Parameters:
     Description: Please enter the IP range for the public subnet
     Type: String
     Default: 10.7.1.0/29
-  # This sets the ip range of the private subnet  
+  # This sets the ip range of the private subnet
   PriSubnet:
     Description: Please enter the IP range for the public subnet
     Type: String
@@ -187,7 +187,6 @@ Resources:
   #This is the gateway to allow access on the internet
   InternetGateway:
     Type: 'AWS::EC2::InternetGateway'
-    Properties:
 
   #This section is ued to link the Gateway to the VPC instance
   AttachGateway:
@@ -211,7 +210,7 @@ Resources:
   SubnetRouteTableAssociation:
     Type: 'AWS::EC2::SubnetRouteTableAssociation'
     Properties:
-      SubnetId: !Ref Subnet
+      SubnetId: !Ref WSSubnet
       RouteTableId: !Ref RouteTable
 
   #The elastic ip address that will be used with the web server
@@ -226,89 +225,87 @@ Resources:
   WebServerInstance:
     Type: 'AWS::EC2::Instance'
     DependsOn: AttachGateway
-    MetaData:
-      configSets:
-        InstallAndRun:
-          - Install
-          - Configure
-      Install:
-        packages:
+    Metadata:
+      'AWS::CloudFormation::Init':
+        configSets:
+          InstallAndRun:
+            - Install
+            - Configure
+        Install:
+          packages:
             yum:
               mysql: []
               mysql-server: []
               mysql-libs: []
-              httpd: []
-              php: []
-              php-mysql: []
-        files:
-          /var/www/html/index.php:
-            content: !Join
-              - ''
-              - - |
-                  <html>
-                - |2
-                  <title>Mom and Pop INC.</title>
-                - |2
-                  </head>
-                - |2
-                  <body>
-                - |2
-                  <h1>Mom and Pop INC. home page</h1>
-                - |2
-                  <p>Cras vulputate, nibh quis auctor semper, tellus quam porttitor nunc, nec congue nisl libero ac erat. Proin placerat tortor eu tincidunt sollicitudin. Vestibulum nibh ex, feugiat sit amet ullamcorper nec, volutpat non mauris. Sed sit amet massa et dolor gravida placerat faucibus a neque. Vivamus ac urna at massa scelerisque consectetur quis eu diam. Curabitur vulputate leo blandit, pharetra ipsum sed, molestie felis. In cursus finibus ante, eu dapibus nibh tempor et. Mauris iaculis mi at mauris fringilla, at ullamcorper ipsum faucibus. Curabitur eu eleifend eros. Curabitur aliquet aliquet lacinia.</p>
-                - |2
-                  </body>
-                - |2
-                  </html>
-          /tmp/setup.mysql:
-            content: !Join
-              - ''
-              - - 'CREATE DATABASE '
-                - !Ref WSDBName
-                - |
-                  ;
-                - 'GRANT ALL ON '
-                - !Ref WSDBName
-                - .* TO '
-                - !Ref WSDBUser
-                - '''@localhost IDENTIFIED BY '''
-                - !Ref DBPassword
-                - |
-                  ';
-            mode: '000400'
-            owner: root
-            group: root
-        services:
-          sysvinit:
-            mysqld:
-              enabled: 'true'
-              ensureRunning: 'true'
-            httpd:
-              enabled: 'true'
-              ensureRunning: 'true'
-
-
-      Configure:
-        commands:
-            01_set_mysql_root_password:
-              command: !Join
+          files:
+            /var/www/html/index.php:
+              content: !Join
                 - ''
-                - - mysqladmin -u root password '
-                  - !Ref WSDBRootPass
-                  - ''''
-            02_create_database:
-              command: !Join
+                - - |
+                    <html>
+                  - |2
+                      <head>
+                  - |2
+                        <title>Mom and Pop INC.</title>
+                  - |2
+                      </head>
+                  - |2
+                      <body>
+                  - |2
+                        <h1>Mom and Pop INC. home page</h1>
+                  - |2
+                      <p>Cras vulputate, nibh quis auctor semper, tellus quam porttitor nunc, nec congue nisl libero ac erat.</p>
+                  - |2
+                      </body>
+                  - |
+                    </html>
+              mode: '000600'
+              owner: apache
+              group: apache
+            /tmp/setup.mysql:
+              content: !Join
                 - ''
-                - - mysql -u root --password='
-                  - !Ref WSDBRootPass
-                  - ''' < /tmp/setup.mysql'
+                - - 'CREATE DATABASE '
+                  - !Ref WSDBName
+                  - |
+                    ;
+                  - 'GRANT ALL ON '
+                  - !Ref WSDBName
+                  - .* TO '
+                  - !Ref WSDBUser
+                  - '''@localhost IDENTIFIED BY '''
+                  - !Ref WSDBPass
+                  - |
+                    ';
+              mode: '000400'
+              owner: root
+              group: root
+          services:
+            sysvinit:
+              mysqld:
+                enabled: 'true'
+                ensureRunning: 'true'
+        Configure:
+          commands:
+              01_set_mysql_root_password:
+                command: !Join
+                  - ''
+                  - - mysqladmin -u root password '
+                    - !Ref WSDBRootPass
+                    - ''''
+              02_create_database:
+                command: !Join
+                  - ''
+                  - - mysql -u root --password='
+                    - !Ref WSDBRootPass
+                    - ''' < /tmp/setup.mysql'
 
     Properties:
       SubnetId: !Ref WSSubnet
       ImageId: !Ref AMI
-      InstanceType: !Ref InstanceType
+      InstanceType: !Ref WSInstanceType
       SecurityGroups:
-        - !Ref WebServerSecurityGroup
+        - !Ref WSSGroup
 
 
 
@@ -318,7 +315,7 @@ Resources:
     Properties:
       SubnetId: !Ref LSSubnet
       ImageId: !Ref AMI
-      InstanceType: !Ref InstanceType
+      InstanceType: !Ref LSInstanceType
       SecurityGroups:
         - !Ref ISSGroup
 
@@ -326,62 +323,61 @@ Resources:
   ManagementServerInstance:
     Type: 'AWS::EC2::Instance'
     DependsOn: AttachGateway
-    MetaData:
-      configSets:
-        InstallAndRun:
-          - Install
-          - Configure
-      Install:
-        packages:
+    Metadata:
+      'AWS::CloudFormation::Init':
+        configSets:
+          InstallAndRun:
+            - Install
+            - Configure
+        Install:
+          packages:
             yum:
               mysql: []
               mysql-server: []
               mysql-libs: []
-        files:
-          /tmp/setup.mysql:
-            content: !Join
-              - ''
-              - - 'CREATE DATABASE '
-                - !Ref MSDBName
-                - |
-                  ;
-                - 'GRANT ALL ON '
-                - !Ref MSDBName
-                - .* TO '
-                - !Ref MSDBUser
-                - '''@localhost IDENTIFIED BY '''
-                - !Ref MSDBPass
-                - |
-                  ';
-            mode: '000400'
-            owner: root
-            group: root
-        services:
-          sysvinit:
-            mysqld:
-              enabled: 'true'
-              ensureRunning: 'true'
-
-
-      Configure:
-        commands:
-            01_set_mysql_root_password:
-              command: !Join
+          files:
+            /tmp/setup.mysql:
+              content: !Join
                 - ''
-                - - mysqladmin -u root password '
-                  - !Ref MSDBRootPass
-                  - ''''
-            02_create_database:
-              command: !Join
-                - ''
-                - - mysql -u root --password='
-                  - !Ref MSDBRootPass
-                  - ''' < /tmp/setup.mysql'
+                - - 'CREATE DATABASE '
+                  - !Ref MSDBName
+                  - |
+                    ;
+                  - 'GRANT ALL ON '
+                  - !Ref MSDBName
+                  - .* TO '
+                  - !Ref MSDBUser
+                  - '''@localhost IDENTIFIED BY '''
+                  - !Ref MSDBPass
+                  - |
+                    ';
+              mode: '000400'
+              owner: root
+              group: root
+          services:
+            sysvinit:
+              mysqld:
+                enabled: 'true'
+                ensureRunning: 'true'
+        Configure:
+          commands:
+              01_set_mysql_root_password:
+                command: !Join
+                  - ''
+                  - - mysqladmin -u root password '
+                    - !Ref MSDBRootPass
+                    - ''''
+              02_create_database:
+                command: !Join
+                  - ''
+                  - - mysql -u root --password='
+                    - !Ref MSDBRootPass
+                    - ''' < /tmp/setup.mysql'
 
     Properties:
       SubnetId: !Ref LSSubnet
       ImageId: !Ref AMI
-      InstanceType: !Ref InstanceType
+      InstanceType: !Ref MSInstanceType
       SecurityGroups:
         - !Ref ISSGroup
 
@@ -411,7 +407,7 @@ Resources:
           ToPort: '22'
           CidrIp: !Ref SSHLocation
 
-Output:
+Outputs:
   WebsiteURL:
     Description: URL for the webserver
     Value: !Join
