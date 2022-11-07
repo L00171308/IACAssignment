@@ -9,21 +9,21 @@ Parameters:
     Type: String
     Default: ami-015232c01a82b847b
 
-  # This sets the ip range of the virtual private cloud
-  VpcRange:
-    Description: Please enter the IP range for this VPC
-    Type: String
-    Default: 10.7.1.0/28
-  # This sets the ip range of the public subnet
-  PubSubnet:
-    Description: Please enter the IP range for the public subnet
-    Type: String
-    Default: 10.7.1.0/29
-  # This sets the ip range of the private subnet
-  PriSubnet:
-    Description: Please enter the IP range for the public subnet
-    Type: String
-    Default: 10.7.1.8/29
+  # # This sets the ip range of the virtual private cloud
+  # VpcRange:
+  #   Description: Please enter the IP range for this VPC
+  #   Type: String
+  #   Default: 10.7.0.0/16
+  # # This sets the ip range of the public subnet
+  # PubSubnet:
+  #   Description: Please enter the IP range for the public subnet
+  #   Type: String
+  #   Default: 10.7.1.0/28
+  # # This sets the ip range of the private subnet
+  # PriSubnet:
+  #   Description: Please enter the IP range for the public subnet
+  #   Type: String
+  #   Default: 10.7.2.0/28
 
   #This section is for the name of the Database for the web server that we will use
   WSDBName:
@@ -168,21 +168,23 @@ Parameters:
 Resources:
   #This is the virtual private cloud (VPC) instance
   VPC:
-    Type: 'AWS::EC2::VPC'
+    Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: VpcRange
+      CidrBlock: 10.7.1.0/26
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
 
   #This is the subnets for the VPC instance
   WSSubnet:
     Type: 'AWS::EC2::Subnet'
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: PubSubnet
+      CidrBlock: 10.7.1.0/28
   LSSubnet:
     Type: 'AWS::EC2::Subnet'
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: PriSubnet
+      CidrBlock: 10.7.1.20/28
 
   #This is the gateway to allow access on the internet
   InternetGateway:
@@ -194,24 +196,26 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       InternetGatewayId: !Ref InternetGateway
-  #This is the RouteTable to control where
-  RouteTable:
-    Type: 'AWS::EC2::RouteTable'
-    Properties:
-      VpcId: !Ref VPC
 
-  Route:
-    Type: 'AWS::EC2::Route'
-    DependsOn: AttachGateway
-    Properties:
-      RouteTableId: !Ref RouteTable
 
-  #This section is ued to link the route table to the subnet
-  SubnetRouteTableAssociation:
-    Type: 'AWS::EC2::SubnetRouteTableAssociation'
-    Properties:
-      SubnetId: !Ref WSSubnet
-      RouteTableId: !Ref RouteTable
+  #unnecessary
+  # RouteTable:
+  #   Type: 'AWS::EC2::RouteTable'
+  #   Properties:
+  #     VpcId: !Ref VPC
+  #
+  # Route:
+  #   Type: 'AWS::EC2::Route'
+  #   DependsOn: AttachGateway
+  #   Properties:
+  #     RouteTableId: !Ref RouteTable
+  #
+  # #This section is ued to link the route table to the subnet
+  # SubnetRouteTableAssociation:
+  #   Type: 'AWS::EC2::SubnetRouteTableAssociation'
+  #   Properties:
+  #     SubnetId: !Ref WSSubnet
+  #     RouteTableId: !Ref RouteTable
 
   #The elastic ip address that will be used with the web server
   IPAddress:
@@ -304,7 +308,7 @@ Resources:
       SubnetId: !Ref WSSubnet
       ImageId: !Ref AMI
       InstanceType: !Ref WSInstanceType
-      SecurityGroups:
+      SecurityGroupIds:
         - !Ref WSSGroup
 
 
@@ -316,7 +320,7 @@ Resources:
       SubnetId: !Ref LSSubnet
       ImageId: !Ref AMI
       InstanceType: !Ref LSInstanceType
-      SecurityGroups:
+      SecurityGroupIds:
         - !Ref ISSGroup
 
   #This is the Management Server of the mom and pop store, it will handle anything to do with the manitence of the business
@@ -378,7 +382,7 @@ Resources:
       SubnetId: !Ref LSSubnet
       ImageId: !Ref AMI
       InstanceType: !Ref MSInstanceType
-      SecurityGroups:
+      SecurityGroupIds:
         - !Ref ISSGroup
 
 
@@ -387,8 +391,8 @@ Resources:
   WSSGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      SubnetId: !Ref WSSubnet
       GroupDescription: external port and IP rules
+      VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: '80'
@@ -399,10 +403,10 @@ Resources:
   ISSGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      SubnetId: !Ref LSSubnet
       GroupDescription: Internal port and IP rules
+      VpcId: !Ref VPC
       SecurityGroupIngress:
-        - IpProtocol: ssh
+        - IpProtocol: tcp
           FromPort: '22'
           ToPort: '22'
           CidrIp: !Ref SSHLocation
