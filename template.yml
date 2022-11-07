@@ -14,15 +14,16 @@ Parameters:
     Description: Please enter the IP range for this VPC
     Type: String
     Default: 10.7.1.0/28
-
+  # This sets the ip range of the public subnet
   PubSubnet:
     Description: Please enter the IP range for the public subnet
     Type: String
-    Default: 10.7.1.0/30
+    Default: 10.7.1.0/29
+  # This sets the ip range of the private subnet  
   PriSubnet:
     Description: Please enter the IP range for the public subnet
     Type: String
-    Default: 10.7.1.0/30
+    Default: 10.7.1.8/29
 
   #This section is for the name of the Database for the web server that we will use
   WSDBName:
